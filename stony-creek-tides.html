@@ -174,21 +174,26 @@
 
   .tick-line {
     height: 1px;
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08);
   }
 
-  .tick.major .tick-line { width: 14px; background: rgba(255,255,255,0.3); }
-  .tick.minor .tick-line { width: 7px; }
+  .tick.major .tick-line { width: 10px; background: rgba(255,255,255,0.25); }
 
   .tick-label {
     font-family: var(--font-mono);
-    font-size: 8px;
-    color: var(--text-muted);
-    writing-mode: horizontal-tb;
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.65);
     position: absolute;
-    right: 16px;
+    right: 13px;
     white-space: nowrap;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
+  }
+
+  .tick.midnight .tick-label {
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 500;
   }
 
   .scroll-thumb {
@@ -480,28 +485,26 @@ function buildTickMarks() {
   const totalPx = minuteToY(totalMinutes);
   container.style.height = totalPx + 'px';
 
-  for (let m = 0; m <= totalMinutes; m += 30) {
+  for (let m = 0; m <= totalMinutes; m += 60) {
+    const date = new Date(startTime.getTime() + m * 60000);
+    const isMidnight = date.getHours() === 0;
+
     const tick = document.createElement('div');
-    tick.className = 'tick ' + (m % 60 === 0 ? 'major' : 'minor');
+    tick.className = 'tick major' + (isMidnight ? ' midnight' : '');
     tick.style.top = minuteToY(m) + 'px';
 
     const line = document.createElement('div');
     line.className = 'tick-line';
     tick.appendChild(line);
 
-    if (m % 60 === 0) {
-      const date = new Date(startTime.getTime() + m * 60000);
-      const label = document.createElement('div');
-      label.className = 'tick-label';
-      if (date.getHours() === 0) {
-        label.textContent = formatDay(date).slice(0,3).toUpperCase();
-        label.style.color = 'rgba(79,195,247,0.5)';
-      } else {
-        label.textContent = formatTime(date).replace(' AM','a').replace(' PM','p');
-      }
-      tick.appendChild(label);
+    const label = document.createElement('div');
+    label.className = 'tick-label';
+    if (isMidnight) {
+      label.textContent = formatDay(date).slice(0,3).toUpperCase();
+    } else {
+      label.textContent = formatTime(date).replace(' AM','a').replace(' PM','p');
     }
-
+    tick.appendChild(label);
     container.appendChild(tick);
   }
 }

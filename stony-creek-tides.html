@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tides">
+<title>Stony Creek Tides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ocean-deep: #0a1628;
+    --ocean-mid: #0d2240;
+    --ocean-surface: #0e3460;
+    --water: #1a5276;
+    --water-light: #2980b9;
+    --foam: #85c1e9;
+    --sky: #aed6f1;
+    --sand: #d4a96a;
+    --text-primary: #e8f4fd;
+    --text-secondary: #7fb3d3;
+    --text-muted: #3a6b8a;
+    --accent: #4fc3f7;
+    --high-tide: #81d4fa;
+    --low-tide: #26a69a;
+    --font-mono: 'DM Mono', monospace;
+    --font-sans: 'DM Sans', sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--ocean-deep);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    touch-action: none;
+  }
+
+  .app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: 1fr 52px;
+    height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* HEADER */
+  .header {
+    grid-column: 1 / 2;
+    grid-row: 1;
+    padding: 48px 20px 16px;
+    background: linear-gradient(180deg, var(--ocean-deep) 0%, transparent 100%);
+    position: relative;
+    z-index: 10;
+  }
+
+  .location {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .tide-height {
+    font-family: var(--font-mono);
+    font-size: 64px;
+    font-weight: 300;
+    line-height: 1;
+    color: var(--text-primary);
+    letter-spacing: -2px;
+  }
+
+  .tide-height span.unit {
+    font-size: 20px;
+    font-weight: 300;
+    color: var(--text-secondary);
+    letter-spacing: 0;
+    margin-left: 4px;
+  }
+
+  .tide-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .tide-direction {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+  }
+
+  .tide-time {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+  }
+
+  .next-event {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    letter-spacing: 0.03em;
+  }
+
+  /* CHART AREA */
+  .chart-container {
+    grid-column: 1 / 2;
+    grid-row: 2;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #tide-chart {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* SCROLL TRACK */
+  .scroll-track {
+    grid-column: 2 / 3;
+    grid-row: 1 / 4;
+    position: relative;
+    background: rgba(255,255,255,0.03);
+    border-left: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: ns-resize;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .scroll-track-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+  }
+
+  .tick-marks {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+  }
+
+  .tick {
+    position: absolute;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    transform: translateY(-50%);
+  }
+
+  .tick-line {
+    height: 1px;
+    background: rgba(255,255,255,0.15);
+  }
+
+  .tick.major .tick-line { width: 14px; background: rgba(255,255,255,0.3); }
+  .tick.minor .tick-line { width: 7px; }
+
+  .tick-label {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--text-muted);
+    writing-mode: horizontal-tb;
+    position: absolute;
+    right: 16px;
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+  }
+
+  .scroll-thumb {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    border-radius: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(79, 195, 247, 0.6);
+    transition: height 0.1s;
+    pointer-events: none;
+  }
+
+  .scroll-now-dot {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(79, 195, 247, 0.8);
+    pointer-events: none;
+  }
+
+  /* DATE BAR */
+  .date-bar {
+    grid-column: 1 / 2;
+    grid-row: 3;
+    padding: 12px 20px 24px;
+    background: linear-gradient(0deg, var(--ocean-deep) 0%, transparent 100%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .date-pill {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .date-pill.active {
+    color: var(--accent);
+    background: rgba(79,195,247,0.1);
+    border-color: rgba(79,195,247,0.3);
+  }
+
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--ocean-deep);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 100;
+    transition: opacity 0.4s;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .loading-text {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .loading-wave {
+    display: flex; gap: 4px;
+  }
+  .loading-wave span {
+    width: 4px; height: 20px;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: wave 1s ease-in-out infinite;
+    opacity: 0.6;
+  }
+  .loading-wave span:nth-child(2) { animation-delay: 0.1s; }
+  .loading-wave span:nth-child(3) { animation-delay: 0.2s; }
+  .loading-wave span:nth-child(4) { animation-delay: 0.3s; }
+  .loading-wave span:nth-child(5) { animation-delay: 0.4s; }
+
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
+
+  .error-msg {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #ef9f27;
+    text-align: center;
+    padding: 8px 20px;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="loading-wave">
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div class="loading-text">fetching tides</div>
+</div>
+
+<div class="app">
+  <header class="header">
+    <div class="location">Stony Creek · Branford CT</div>
+    <div class="tide-height" id="height-display">—<span class="unit">ft</span></div>
+    <div class="tide-meta">
+      <div class="tide-direction" id="direction-display">—</div>
+      <div class="tide-time" id="time-display">—</div>
+    </div>
+    <div class="next-event" id="next-event-display">—</div>
+  </header>
+
+  <div class="chart-container">
+    <canvas id="tide-chart"></canvas>
+  </div>
+
+  <div class="scroll-track" id="scroll-track">
+    <div class="scroll-track-inner" id="track-inner">
+      <div class="tick-marks" id="tick-marks"></div>
+      <div class="scroll-thumb" id="scroll-thumb" style="height:40px; top:0;"></div>
+      <div class="scroll-now-dot" id="now-dot"></div>
+    </div>
+  </div>
+
+  <div class="date-bar">
+    <div class="date-pill active" id="pill-0" onclick="jumpToDay(0)">Today</div>
+    <div class="date-pill" id="pill-1" onclick="jumpToDay(1)">Tomorrow</div>
+    <div class="date-pill" id="pill-2" onclick="jumpToDay(2)" id="pill-day2"></div>
+  </div>
+</div>
+
+<script>
+const STATION = '8465705';
+const TOTAL_HOURS = 54;
+const MINUTES_PER_PX_TRACK = 4;
+
+let tideData = [];
+let currentMinuteOffset = 0;
+let trackHeight = 0;
+let isDragging = false;
+let dragStartY = 0;
+let dragStartOffset = 0;
+let startTime = null;
+
+function getStartTime() {
+  const now = new Date();
+  now.setMinutes(0, 0, 0);
+  now.setHours(now.getHours() - 2);
+  return now;
+}
+
+function minuteToY(min) {
+  return (min / MINUTES_PER_PX_TRACK);
+}
+
+function yToMinute(y) {
+  return y * MINUTES_PER_PX_TRACK;
+}
+
+function formatTime(date) {
+  let h = date.getHours(), m = date.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function formatDay(date) {
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`;
+}
+
+async function fetchTideData() {
+  const now = new Date();
+  const dates = [];
+  for (let i = -1; i <= 3; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
+  }
+
+  const begin = dates[0];
+  const end = dates[dates.length - 1];
+
+  const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${begin}&end_date=${end}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst/ldt&interval=6&units=english&application=stony_creek_tides&format=json`;
+
+  const r = await fetch(url);
+  const j = await r.json();
+  if (!j.predictions) throw new Error('No data');
+
+  return j.predictions.map(p => {
+    const [datePart, timePart] = p.t.split(' ');
+    const [yr, mo, dy] = datePart.split('-').map(Number);
+    const [hh, mm] = timePart.split(':').map(Number);
+    const date = new Date(yr, mo - 1, dy, hh, mm, 0);
+    return { date, v: parseFloat(p.v) };
+  });
+}
+
+async function fetchHiLos() {
+  const now = new Date();
+  const dates = [];
+  for (let i = -1; i <= 3; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
+  }
+  const begin = dates[0], end = dates[dates.length - 1];
+  const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${begin}&end_date=${end}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst/ldt&interval=hilo&units=english&application=stony_creek_tides&format=json`;
+  const r = await fetch(url);
+  const j = await r.json();
+  if (!j.predictions) return [];
+  return j.predictions.map(p => {
+    const [datePart, timePart] = p.t.split(' ');
+    const [yr, mo, dy] = datePart.split('-').map(Number);
+    const [hh, mm] = timePart.split(':').map(Number);
+    return { date: new Date(yr, mo-1, dy, hh, mm, 0), v: parseFloat(p.v), type: p.type };
+  });
+}
+
+let hiloData = [];
+
+function getHeightAtTime(targetDate) {
+  if (!tideData.length) return null;
+  const t = targetDate.getTime();
+  let lo = 0, hi = tideData.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (tideData[mid].date.getTime() <= t) lo = mid; else hi = mid;
+  }
+  const a = tideData[lo], b = tideData[hi];
+  if (!b) return a.v;
+  const frac = (t - a.date.getTime()) / (b.date.getTime() - a.date.getTime());
+  return a.v + (b.v - a.v) * frac;
+}
+
+function getTrend(targetDate) {
+  const t1 = getHeightAtTime(new Date(targetDate.getTime() - 20*60000));
+  const t2 = getHeightAtTime(new Date(targetDate.getTime() + 20*60000));
+  if (t1 === null || t2 === null) return '';
+  return t2 > t1 ? '↑ Rising' : '↓ Falling';
+}
+
+function getNextEvent(targetDate) {
+  const t = targetDate.getTime();
+  const future = hiloData.filter(h => h.date.getTime() > t);
+  if (!future.length) return '';
+  const next = future[0];
+  const diffMin = Math.round((next.date.getTime() - t) / 60000);
+  const hrs = Math.floor(diffMin / 60);
+  const mins = diffMin % 60;
+  const label = next.type === 'H' ? 'High' : 'Low';
+  const timeStr = formatTime(next.date);
+  const diffStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+  return `${label} ${next.v.toFixed(1)}ft at ${timeStr} · in ${diffStr}`;
+}
+
+function buildTickMarks() {
+  const container = document.getElementById('tick-marks');
+  container.innerHTML = '';
+  const totalMinutes = TOTAL_HOURS * 60;
+  const totalPx = minuteToY(totalMinutes);
+  container.style.height = totalPx + 'px';
+
+  for (let m = 0; m <= totalMinutes; m += 30) {
+    const tick = document.createElement('div');
+    tick.className = 'tick ' + (m % 60 === 0 ? 'major' : 'minor');
+    tick.style.top = minuteToY(m) + 'px';
+
+    const line = document.createElement('div');
+    line.className = 'tick-line';
+    tick.appendChild(line);
+
+    if (m % 60 === 0) {
+      const date = new Date(startTime.getTime() + m * 60000);
+      const label = document.createElement('div');
+      label.className = 'tick-label';
+      if (date.getHours() === 0) {
+        label.textContent = formatDay(date).slice(0,3).toUpperCase();
+        label.style.color = 'rgba(79,195,247,0.5)';
+      } else {
+        label.textContent = formatTime(date).replace(' AM','a').replace(' PM','p');
+      }
+      tick.appendChild(label);
+    }
+
+    container.appendChild(tick);
+  }
+}
+
+function drawChart() {
+  const canvas = document.getElementById('tide-chart');
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  canvas.width = W * window.devicePixelRatio;
+  canvas.height = H * window.devicePixelRatio;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  if (!tideData.length) return;
+
+  const displayDate = new Date(startTime.getTime() + currentMinuteOffset * 60000);
+  const windowHours = 14;
+  const halfWindow = windowHours * 60 / 2;
+  const winStart = new Date(displayDate.getTime() - halfWindow * 60000);
+  const winEnd = new Date(displayDate.getTime() + halfWindow * 60000);
+
+  const relevant = tideData.filter(p => p.date >= new Date(winStart.getTime() - 6*60000) && p.date <= new Date(winEnd.getTime() + 6*60000));
+  if (!relevant.length) return;
+
+  const vals = relevant.map(p => p.v);
+  const minV = Math.min(...vals) - 0.3;
+  const maxV = Math.max(...vals) + 0.3;
+  const range = maxV - minV;
+
+  const PAD_L = 40, PAD_R = 12, PAD_T = 20, PAD_B = 30;
+  const cW = W - PAD_L - PAD_R;
+  const cH = H - PAD_T - PAD_B;
+
+  function timeToX(date) {
+    const frac = (date.getTime() - winStart.getTime()) / (winEnd.getTime() - winStart.getTime());
+    return PAD_L + frac * cW;
+  }
+  function valToY(v) {
+    return PAD_T + (1 - (v - minV) / range) * cH;
+  }
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let ft = Math.floor(minV); ft <= Math.ceil(maxV); ft += 1) {
+    const y = valToY(ft);
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, y);
+    ctx.lineTo(W - PAD_R, y);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '10px DM Mono';
+    ctx.fillText(ft + 'ft', 2, y + 4);
+  }
+
+  // Hour marks on x axis
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.font = '9px DM Mono';
+  for (let h = 0; h <= windowHours; h++) {
+    const d = new Date(winStart.getTime() + h * 3600000);
+    const x = timeToX(d);
+    const label = formatTime(d).replace(' AM','a').replace(' PM','p');
+    ctx.fillText(label, x - 12, H - 6);
+  }
+
+  // Tide curve fill
+  const grad = ctx.createLinearGradient(0, PAD_T, 0, H - PAD_B);
+  grad.addColorStop(0, 'rgba(26,82,118,0.7)');
+  grad.addColorStop(1, 'rgba(10,22,40,0.2)');
+
+  ctx.beginPath();
+  relevant.forEach((p, i) => {
+    const x = timeToX(p.date), y = valToY(p.v);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(timeToX(relevant[relevant.length-1].date), H - PAD_B);
+  ctx.lineTo(timeToX(relevant[0].date), H - PAD_B);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Tide curve line
+  ctx.beginPath();
+  relevant.forEach((p, i) => {
+    const x = timeToX(p.date), y = valToY(p.v);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = 'rgba(133,193,233,0.8)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Hi/lo dots
+  const visibleHilos = hiloData.filter(h => h.date >= winStart && h.date <= winEnd);
+  visibleHilos.forEach(hl => {
+    const x = timeToX(hl.date), y = valToY(hl.v);
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = hl.type === 'H' ? '#81d4fa' : '#26a69a';
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '9px DM Mono';
+    ctx.fillText(hl.v.toFixed(1), x - 8, hl.type === 'H' ? y - 8 : y + 16);
+  });
+
+  // Now line (vertical)
+  const nowX = timeToX(displayDate);
+  ctx.beginPath();
+  ctx.moveTo(nowX, PAD_T);
+  ctx.lineTo(nowX, H - PAD_B);
+  ctx.strokeStyle = 'rgba(79,195,247,0.9)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Current height dot
+  const curH = getHeightAtTime(displayDate);
+  if (curH !== null) {
+    const dotX = nowX, dotY = valToY(curH);
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+  }
+}
+
+function updateHeader() {
+  const displayDate = new Date(startTime.getTime() + currentMinuteOffset * 60000);
+  const h = getHeightAtTime(displayDate);
+  document.getElementById('height-display').innerHTML = h !== null ? `${h.toFixed(1)}<span class="unit">ft</span>` : `—<span class="unit">ft</span>`;
+  document.getElementById('direction-display').textContent = getTrend(displayDate);
+  document.getElementById('time-display').textContent = formatTime(displayDate) + ' · ' + formatDay(displayDate);
+  document.getElementById('next-event-display').textContent = getNextEvent(displayDate);
+}
+
+function updateThumb() {
+  const track = document.getElementById('scroll-track');
+  trackHeight = track.offsetHeight;
+  const totalMinutes = TOTAL_HOURS * 60;
+  const totalPx = minuteToY(totalMinutes);
+  const scrollRatio = currentMinuteOffset / totalMinutes;
+  const thumbH = Math.max(30, trackHeight * (trackHeight / (totalPx + trackHeight)));
+  const maxTop = trackHeight - thumbH;
+  const thumbTop = scrollRatio * maxTop;
+
+  const thumb = document.getElementById('scroll-thumb');
+  thumb.style.height = thumbH + 'px';
+  thumb.style.top = thumbTop + 'px';
+
+  // Now dot
+  const now = new Date();
+  const nowMinutes = (now.getTime() - startTime.getTime()) / 60000;
+  const nowRatio = Math.max(0, Math.min(1, nowMinutes / totalMinutes));
+  const nowY = nowRatio * maxTop + thumbH / 2;
+  const nowDot = document.getElementById('now-dot');
+  nowDot.style.top = nowY + 'px';
+}
+
+function update() {
+  updateHeader();
+  drawChart();
+  updateThumb();
+  updateDatePills();
+}
+
+function updateDatePills() {
+  const displayDate = new Date(startTime.getTime() + currentMinuteOffset * 60000);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+  const day2 = new Date(today); day2.setDate(day2.getDate()+2);
+  const dDate = new Date(displayDate); dDate.setHours(0,0,0,0);
+
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  document.getElementById('pill-2').textContent = days[day2.getDay()];
+
+  ['pill-0','pill-1','pill-2'].forEach((id, i) => {
+    const pill = document.getElementById(id);
+    const ref = [today, tomorrow, day2][i];
+    pill.classList.toggle('active', dDate.getTime() === ref.getTime());
+  });
+}
+
+function jumpToDay(dayOffset) {
+  const now = new Date();
+  const target = new Date(now);
+  target.setDate(target.getDate() + dayOffset);
+  target.setHours(dayOffset === 0 ? now.getHours() : 8, dayOffset === 0 ? now.getMinutes() : 0, 0, 0);
+  const minutes = (target.getTime() - startTime.getTime()) / 60000;
+  currentMinuteOffset = Math.max(0, Math.min(TOTAL_HOURS * 60, minutes));
+  update();
+}
+
+// Scroll track interaction
+const track = document.getElementById('scroll-track');
+
+function getTrackY(e) {
+  const rect = track.getBoundingClientRect();
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return clientY - rect.top;
+}
+
+function onDragStart(e) {
+  isDragging = true;
+  dragStartY = getTrackY(e);
+  dragStartOffset = currentMinuteOffset;
+  e.preventDefault();
+}
+
+function onDragMove(e) {
+  if (!isDragging) return;
+  const y = getTrackY(e);
+  const dy = y - dragStartY;
+  const totalPx = minuteToY(TOTAL_HOURS * 60);
+  const minuteDelta = (dy / trackHeight) * TOTAL_HOURS * 60;
+  currentMinuteOffset = Math.max(0, Math.min(TOTAL_HOURS * 60, dragStartOffset + minuteDelta));
+  update();
+  e.preventDefault();
+}
+
+function onDragEnd() { isDragging = false; }
+
+track.addEventListener('mousedown', onDragStart);
+track.addEventListener('touchstart', onDragStart, { passive: false });
+document.addEventListener('mousemove', onDragMove);
+document.addEventListener('touchmove', onDragMove, { passive: false });
+document.addEventListener('mouseup', onDragEnd);
+document.addEventListener('touchend', onDragEnd);
+
+window.addEventListener('resize', () => {
+  drawChart();
+  updateThumb();
+});
+
+async function init() {
+  startTime = getStartTime();
+
+  // Set day 2 pill label
+  const now = new Date();
+  const day2 = new Date(now); day2.setDate(day2.getDate()+2);
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  document.getElementById('pill-2').textContent = days[day2.getDay()];
+
+  // Set current offset to now
+  const nowMinutes = (new Date().getTime() - startTime.getTime()) / 60000;
+  currentMinuteOffset = Math.max(0, nowMinutes);
+
+  try {
+    [tideData, hiloData] = await Promise.all([fetchTideData(), fetchHiLos()]);
+    buildTickMarks();
+    update();
+    document.getElementById('loading').classList.add('hidden');
+  } catch(err) {
+    document.querySelector('.loading-text').textContent = 'could not load tide data';
+    document.querySelector('.loading-text').style.color = '#ef9f27';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

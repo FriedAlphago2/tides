@@ -332,7 +332,6 @@ const TOTAL_HOURS = 54;
 
 // ---- TIDE RANGE FOR WATER HEIGHT MAPPING ----
 // These will be set from actual data
-let tideMin = 0, tideMax = 7;
 
 // Percentage of screen the water covers at min/max tide
 // At low tide (~0ft): water covers ~8% of screen height
@@ -446,9 +445,12 @@ function getNextEvent(targetDate) {
   return `${label} ${next.v.toFixed(1)}ft at ${timeStr} · in ${diffStr}`;
 }
 
+// Fixed tide range for New Haven - low always same, high always same
+const TIDE_FIXED_MIN = 0;
+const TIDE_FIXED_MAX = 7;
+
 function tideToWaterPct(height) {
-  const range = tideMax - tideMin || 1;
-  const frac = Math.max(0, Math.min(1, (height - tideMin) / range));
+  const frac = Math.max(0, Math.min(1, (height - TIDE_FIXED_MIN) / (TIDE_FIXED_MAX - TIDE_FIXED_MIN)));
   return WATER_PCT_MIN + frac * (WATER_PCT_MAX - WATER_PCT_MIN);
 }
 
@@ -458,17 +460,20 @@ function updateWaterOverlay(height) {
 }
 
 function buildTickMarks() {
+  // Rebuild whenever trackHeight changes - ticks mapped to screen pixels directly
   const container = document.getElementById('tick-marks');
   container.innerHTML = '';
+  const track = document.getElementById('scroll-track');
+  trackHeight = track.offsetHeight;
+  container.style.height = trackHeight + 'px';
   const totalMinutes = TOTAL_HOURS * 60;
-  const totalPx = totalMinutes / 4; // 4 min per px
-  container.style.height = totalPx + 'px';
   for (let m = 0; m <= totalMinutes; m += 60) {
     const date = new Date(startTime.getTime() + m * 60000);
     const isMidnight = date.getHours() === 0;
     const tick = document.createElement('div');
     tick.className = 'tick major' + (isMidnight ? ' midnight' : '');
-    tick.style.top = (m / 4) + 'px';
+    // Map minute offset directly to pixel position on screen
+    tick.style.top = ((m / totalMinutes) * trackHeight) + 'px';
     const line = document.createElement('div');
     line.className = 'tick-line';
     tick.appendChild(line);
@@ -568,7 +573,7 @@ document.addEventListener('mousemove', onDragMove);
 document.addEventListener('touchmove', onDragMove, { passive: false });
 document.addEventListener('mouseup', onDragEnd);
 document.addEventListener('touchend', onDragEnd);
-window.addEventListener('resize', () => { update(); });
+window.addEventListener('resize', () => { buildTickMarks(); update(); });
 
 async function init() {
   startTime = getStartTime();
@@ -588,10 +593,6 @@ async function init() {
 
   try {
     [tideData, hiloData] = await Promise.all([fetchTideData(), fetchHiLos()]);
-    // Set tide range from actual data
-    const vals = tideData.map(p => p.v);
-    tideMin = Math.min(...vals);
-    tideMax = Math.max(...vals);
     buildTickMarks();
     update();
     document.getElementById('loading').classList.add('hidden');

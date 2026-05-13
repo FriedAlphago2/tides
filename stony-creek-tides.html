@@ -150,7 +150,7 @@
   .header {
     position: absolute;
     top: 0; left: 0; right: 52px;
-    padding: 48px 16px 16px;
+    padding: 44px 16px 16px;
     pointer-events: none;
     background: linear-gradient(180deg, rgba(0,0,0,0.45) 0%, transparent 100%);
   }
@@ -160,8 +160,18 @@
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: rgba(255,255,255,0.6);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+  }
+  .scroll-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 46px;
+    font-weight: 300;
+    line-height: 1;
+    color: #fff;
+    letter-spacing: -1px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    margin-bottom: 4px;
   }
   .tide-height-wrap {
     display: flex;
@@ -170,35 +180,23 @@
   }
   .tide-height {
     font-family: 'DM Mono', monospace;
-    font-size: 58px;
+    font-size: 28px;
     font-weight: 300;
     line-height: 1;
     color: #fff;
-    letter-spacing: -2px;
     text-shadow: 0 2px 8px rgba(0,0,0,0.8);
   }
   .tide-unit {
-    font-size: 18px;
+    font-size: 14px;
     color: rgba(255,255,255,0.75);
     text-shadow: 0 1px 4px rgba(0,0,0,0.7);
   }
-  .tide-meta {
-    display: flex;
-    gap: 12px;
-    margin-top: 6px;
-    flex-wrap: wrap;
-  }
   .tide-dir {
     font-family: 'DM Mono', monospace;
-    font-size: 12px;
+    font-size: 13px;
     color: #7dd3fc;
     text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-  }
-  .tide-time-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    color: rgba(255,255,255,0.65);
-    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    margin-left: 8px;
   }
   .next-event {
     font-family: 'DM Mono', monospace;
@@ -297,13 +295,11 @@
   <!-- Header overlay -->
   <header class="header">
     <div class="location">Stony Creek · Branford CT</div>
+    <div class="scroll-time" id="time-display">—</div>
     <div class="tide-height-wrap">
       <div class="tide-height" id="height-display">—</div>
       <div class="tide-unit">ft</div>
-    </div>
-    <div class="tide-meta">
-      <div class="tide-dir" id="direction-display">—</div>
-      <div class="tide-time-label" id="time-display">—</div>
+      <div class="tide-dir" id="direction-display"></div>
     </div>
     <div class="next-event" id="next-event-display">—</div>
   </header>
@@ -336,7 +332,7 @@ const TOTAL_HOURS = 54;
 // Percentage of screen the water covers at min/max tide
 // At low tide (~0ft): water covers ~8% of screen height
 // At high tide (~6.5ft): water covers ~60% of screen height
-const WATER_PCT_MIN = 8;
+const WATER_PCT_MIN = 14;
 const WATER_PCT_MAX = 62;
 
 // ---- STATE ----
@@ -504,9 +500,9 @@ function updateThumb() {
 function updateHeader() {
   const displayDate = new Date(startTime.getTime() + currentMinuteOffset * 60000);
   const h = getHeightAtTime(displayDate);
-  document.getElementById('height-display').textContent = h !== null ? h.toFixed(1) : '—';
-  document.getElementById('direction-display').textContent = getTrend(displayDate);
   document.getElementById('time-display').textContent = fmt12(displayDate.getHours(), displayDate.getMinutes()) + ' · ' + fmtDate(displayDate);
+  document.getElementById('height-display').textContent = h !== null ? h.toFixed(1) : '—';
+  document.getElementById('direction-display').textContent = h !== null ? ' ' + getTrend(displayDate) : '';
   document.getElementById('next-event-display').textContent = getNextEvent(displayDate);
   if (h !== null) updateWaterOverlay(h);
 }

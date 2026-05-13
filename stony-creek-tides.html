@@ -44,41 +44,29 @@
     right: 52px;
     bottom: 0;
     pointer-events: none;
-    transition: height 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition: height 0.05s linear;
     overflow: hidden;
   }
-  .water-surface {
+  .water-top {
     position: absolute;
     top: 0;
-    left: -10px;
-    right: -10px;
-    height: 32px;
-  }
-  .water-surface svg {
-    width: 100%;
-    height: 100%;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(100,200,255,0.6);
+    box-shadow: 0 0 8px rgba(79,195,247,0.5);
   }
   .water-body {
     position: absolute;
-    top: 28px;
+    top: 3px;
     left: 0;
     right: 0;
     bottom: 0;
     background: linear-gradient(180deg,
-      rgba(20,80,140,0.72) 0%,
-      rgba(10,30,70,0.85) 60%,
-      rgba(5,15,40,0.92) 100%
+      rgba(20,80,140,0.70) 0%,
+      rgba(10,30,70,0.82) 60%,
+      rgba(5,15,40,0.90) 100%
     );
-  }
-
-  /* WAVE ANIMATION */
-  @keyframes wave1 {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-  @keyframes wave2 {
-    0%   { transform: translateX(-50%); }
-    100% { transform: translateX(0); }
   }
 
   /* SCROLL TRACK - right side */
@@ -302,38 +290,7 @@
 
   <!-- Water overlay -->
   <div class="water-overlay" id="water-overlay" style="height:0%">
-    <div class="water-surface">
-      <svg viewBox="0 0 400 32" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="rgba(79,195,247,0.25)"/>
-            <stop offset="100%" stop-color="rgba(20,80,140,0)"/>
-          </linearGradient>
-        </defs>
-        <!-- wave 1 -->
-        <path id="wave-path-1" fill="rgba(79,195,247,0.18)" style="animation: wave1 3.5s linear infinite">
-          <animate attributeName="d"
-            dur="3.5s"
-            repeatCount="indefinite"
-            values="
-              M0,18 C40,8 80,28 120,18 C160,8 200,28 240,18 C280,8 320,28 360,18 C380,12 400,20 400,18 L400,32 L0,32 Z;
-              M0,20 C40,28 80,10 120,20 C160,28 200,10 240,20 C280,28 320,10 360,20 C380,24 400,16 400,20 L400,32 L0,32 Z;
-              M0,18 C40,8 80,28 120,18 C160,8 200,28 240,18 C280,8 320,28 360,18 C380,12 400,20 400,18 L400,32 L0,32 Z
-            "/>
-        </path>
-        <!-- wave 2 -->
-        <path fill="rgba(30,100,180,0.22)" style="animation: wave2 5s linear infinite">
-          <animate attributeName="d"
-            dur="5s"
-            repeatCount="indefinite"
-            values="
-              M0,22 C50,14 100,26 150,22 C200,14 250,26 300,22 C350,14 400,22 400,22 L400,32 L0,32 Z;
-              M0,16 C50,24 100,12 150,16 C200,24 250,12 300,16 C350,24 400,16 400,16 L400,32 L0,32 Z;
-              M0,22 C50,14 100,26 150,22 C200,14 250,26 300,22 C350,14 400,22 400,22 L400,32 L0,32 Z
-            "/>
-        </path>
-      </svg>
-    </div>
+    <div class="water-top"></div>
     <div class="water-body"></div>
   </div>
 

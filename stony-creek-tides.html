@@ -389,7 +389,7 @@ async function fetchTideData() {
   const begin = dates[0];
   const end = dates[dates.length - 1];
 
-  const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${begin}&end_date=${end}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst/ldt&interval=6&units=english&application=stony_creek_tides&format=json`;
+  const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${begin}&end_date=${end}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=6&units=english&application=stony_creek_tides&format=json`;
 
   const r = await fetch(url);
   const j = await r.json();
@@ -413,7 +413,7 @@ async function fetchHiLos() {
     dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
   }
   const begin = dates[0], end = dates[dates.length - 1];
-  const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${begin}&end_date=${end}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst/ldt&interval=hilo&units=english&application=stony_creek_tides&format=json`;
+  const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${begin}&end_date=${end}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=stony_creek_tides&format=json`;
   const r = await fetch(url);
   const j = await r.json();
   if (!j.predictions) return [];

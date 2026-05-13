@@ -193,14 +193,25 @@
 
   .scroll-thumb {
     position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    border-radius: 2px;
+    left: 0;
+    right: 0;
+    height: 2px;
     background: var(--accent);
-    box-shadow: 0 0 8px rgba(79, 195, 247, 0.6);
-    transition: height 0.1s;
+    box-shadow: 0 0 6px rgba(79, 195, 247, 0.8);
     pointer-events: none;
+    transform: translateY(-50%);
+  }
+  .scroll-thumb::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(79, 195, 247, 0.9);
   }
 
   .scroll-now-dot {
@@ -324,7 +335,7 @@
   <div class="scroll-track" id="scroll-track">
     <div class="scroll-track-inner" id="track-inner">
       <div class="tick-marks" id="tick-marks"></div>
-      <div class="scroll-thumb" id="scroll-thumb" style="height:40px; top:0;"></div>
+      <div class="scroll-thumb" id="scroll-thumb" style="top:0;"></div>
       <div class="scroll-now-dot" id="now-dot"></div>
     </div>
   </div>
@@ -635,19 +646,15 @@ function updateThumb() {
   const totalMinutes = TOTAL_HOURS * 60;
   const totalPx = minuteToY(totalMinutes);
   const scrollRatio = currentMinuteOffset / totalMinutes;
-  const thumbH = Math.max(30, trackHeight * (trackHeight / (totalPx + trackHeight)));
-  const maxTop = trackHeight - thumbH;
-  const thumbTop = scrollRatio * maxTop;
-
+  const thumbTop = scrollRatio * trackHeight;
   const thumb = document.getElementById('scroll-thumb');
-  thumb.style.height = thumbH + 'px';
   thumb.style.top = thumbTop + 'px';
 
   // Now dot
   const now = new Date();
   const nowMinutes = (now.getTime() - startTime.getTime()) / 60000;
   const nowRatio = Math.max(0, Math.min(1, nowMinutes / totalMinutes));
-  const nowY = nowRatio * maxTop + thumbH / 2;
+  const nowY = nowRatio * trackHeight;
   const nowDot = document.getElementById('now-dot');
   nowDot.style.top = nowY + 'px';
 }

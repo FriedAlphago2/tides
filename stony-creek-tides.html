@@ -105,16 +105,27 @@
     height: 1px;
     background: rgba(255,255,255,0.08);
   }
-  .tick.major .tick-line { width: 10px; background: rgba(255,255,255,0.25); }
+  .tick.major .tick-line { width: 10px; background: rgba(255,255,255,0.3); }
+  .tick.dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    right: 24px;
+    transform: translate(0, -50%);
+  }
   .tick-label {
     font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: rgba(255,255,255,0.65);
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.85);
     position: absolute;
     right: 13px;
     white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
   }
-  .tick.midnight .tick-label { color: #4fc3f7; font-weight: 500; }
+  .tick.midnight .tick-label { color: #4fc3f7; }
+  .tick.noon .tick-label { color: rgba(255,220,140,0.85); }
 
   .scroll-thumb {
     position: absolute;
@@ -469,20 +480,27 @@ function buildTickMarks() {
   const totalMinutes = TOTAL_HOURS * 60;
   for (let m = 0; m <= totalMinutes; m += 60) {
     const date = new Date(startTime.getTime() + m * 60000);
-    const isMidnight = date.getHours() === 0;
+    const hr = date.getHours();
+    const isMidnight = hr === 0;
+    const isNoon = hr === 12;
     const tick = document.createElement('div');
-    tick.className = 'tick major' + (isMidnight ? ' midnight' : '');
-    // Map minute offset directly to pixel position on screen
     tick.style.top = ((m / totalMinutes) * trackHeight) + 'px';
-    const line = document.createElement('div');
-    line.className = 'tick-line';
-    tick.appendChild(line);
-    const label = document.createElement('div');
-    label.className = 'tick-label';
-    label.textContent = isMidnight
-      ? fmtDate(date).slice(0,3).toUpperCase()
-      : fmt12(date.getHours(), 0).replace(' AM','a').replace(' PM','p');
-    tick.appendChild(label);
+
+    if (isMidnight || isNoon) {
+      tick.className = 'tick major' + (isMidnight ? ' midnight' : ' noon');
+      const line = document.createElement('div');
+      line.className = 'tick-line';
+      tick.appendChild(line);
+      const label = document.createElement('div');
+      label.className = 'tick-label';
+      label.textContent = isMidnight
+        ? fmtDate(date).slice(0,3).toUpperCase()
+        : 'noon';
+      tick.appendChild(label);
+    } else {
+      // Small dot for regular hours
+      tick.className = 'tick dot';
+    }
     container.appendChild(tick);
   }
 }

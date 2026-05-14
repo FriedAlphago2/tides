@@ -210,45 +210,39 @@
   .date-bar {
     position: absolute;
     bottom: 0; left: 0; right: 52px;
-    padding: 10px 0 20px;
-    background: linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%);
-    overflow: visible;
+    padding: 12px 0 24px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.5) 0%, transparent 100%);
   }
   .date-bar-inner {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     overflow-x: auto;
-    padding: 2px 16px 4px;
-    scroll-snap-type: x mandatory;
+    padding: 0 16px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
   .date-bar-inner::-webkit-scrollbar { display: none; }
   .date-pill {
+    flex-shrink: 0;
+    white-space: nowrap;
     font-family: 'DM Mono', monospace;
     font-size: 10px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: rgba(255,255,255,0.55);
     background: rgba(0,0,0,0.35);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 20px;
-    padding: 5px 11px;
+    padding: 4px 10px;
     cursor: pointer;
     backdrop-filter: blur(4px);
     transition: all 0.15s;
-    white-space: nowrap;
-    flex-shrink: 0;
-    scroll-snap-align: start;
-    line-height: 1.3;
   }
   .date-pill.active {
     color: #4fc3f7;
     background: rgba(79,195,247,0.15);
     border-color: rgba(79,195,247,0.4);
   }
-  .date-pill .pill-day { display: block; font-size: 11px; }
-  .date-pill .pill-date { display: block; font-size: 9px; opacity: 0.7; margin-top: 1px; }
 
   /* LOADING */
   .loading-overlay {
@@ -337,7 +331,7 @@
 <script>
 // ---- CONFIG ----
 const STATION = '8465705';
-const TOTAL_HOURS = 24 * 30;
+const TOTAL_HOURS = 54;
 
 // ---- TIDE RANGE FOR WATER HEIGHT MAPPING ----
 // These will be set from actual data
@@ -380,7 +374,7 @@ function fmtDate(d) {
 async function fetchTideData() {
   const now = new Date();
   const dates = [];
-  for (let i = -1; i <= 4; i++) {
+  for (let i = -1; i <= 3; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
@@ -389,7 +383,7 @@ async function fetchTideData() {
   const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${begin}&end_date=${end}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=6&units=english&application=stony_creek_tides&format=json`;
   const r = await fetch(url);
   const j = await r.json();
-  if (!j.predictions) throw new Error(j.error ? j.error.message : 'No predictions in response');
+  if (!j.predictions) throw new Error('No data');
   return j.predictions.map(p => {
     const [datePart, timePart] = p.t.split(' ');
     const [yr, mo, dy] = datePart.split('-').map(Number);
@@ -401,7 +395,7 @@ async function fetchTideData() {
 async function fetchHiLos() {
   const now = new Date();
   const dates = [];
-  for (let i = -1; i <= 4; i++) {
+  for (let i = -1; i <= 3; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
@@ -479,24 +473,18 @@ function buildTickMarks() {
   for (let m = 0; m <= totalMinutes; m += 60) {
     const date = new Date(startTime.getTime() + m * 60000);
     const isMidnight = date.getHours() === 0;
-    const isNoon = date.getHours() === 12;
-    // Only show midnight and noon labels to keep it clean over 30 days
-    const showLabel = isMidnight || isNoon;
-    if (!showLabel) continue;
     const tick = document.createElement('div');
     tick.className = 'tick major' + (isMidnight ? ' midnight' : '');
+    // Map minute offset directly to pixel position on screen
     tick.style.top = ((m / totalMinutes) * trackHeight) + 'px';
     const line = document.createElement('div');
     line.className = 'tick-line';
     tick.appendChild(line);
     const label = document.createElement('div');
     label.className = 'tick-label';
-    if (isMidnight) {
-      label.textContent = fmtDate(date).slice(0,6).toUpperCase();
-    } else {
-      label.textContent = 'NOON';
-      label.style.opacity = '0.4';
-    }
+    label.textContent = isMidnight
+      ? fmtDate(date).slice(0,3).toUpperCase()
+      : fmt12(date.getHours(), 0).replace(' AM','a').replace(' PM','p');
     tick.appendChild(label);
     container.appendChild(tick);
   }
@@ -528,19 +516,15 @@ function updateHeader() {
 
 function updateDatePills() {
   const displayDate = new Date(startTime.getTime() + currentMinuteOffset * 60000);
-  const dDate = new Date(displayDate); dDate.setHours(0,0,0,0);
   const today = new Date(); today.setHours(0,0,0,0);
-
-  for (let i = 0; i < TOTAL_DAYS; i++) {
+  const dDate = new Date(displayDate); dDate.setHours(0,0,0,0);
+  for (let i = 0; i < 30; i++) {
     const pill = document.getElementById('pill-' + i);
     if (!pill) continue;
     const ref = new Date(today); ref.setDate(ref.getDate() + i);
     const isActive = dDate.getTime() === ref.getTime();
     pill.classList.toggle('active', isActive);
-    if (isActive) {
-      // Scroll active pill into view
-      pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
+    if (isActive) pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }
 }
 
@@ -550,33 +534,18 @@ function update() {
   updateDatePills();
 }
 
-const TOTAL_DAYS = 30;
-
 function buildDatePills() {
   const bar = document.getElementById('date-bar-inner');
   bar.innerHTML = '';
   const now = new Date();
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  for (let i = 0; i < TOTAL_DAYS; i++) {
-    const d = new Date(now);
-    d.setDate(d.getDate() + i);
-    d.setHours(0,0,0,0);
-
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(now); d.setDate(d.getDate() + i); d.setHours(0,0,0,0);
     const pill = document.createElement('div');
-    pill.className = 'date-pill';
-    pill.id = 'pill-' + i;
-    pill.dataset.dayOffset = i;
-
-    if (i === 0) {
-      pill.innerHTML = '<span class="pill-day">Today</span><span class="pill-date">' + months[d.getMonth()] + ' ' + d.getDate() + '</span>';
-    } else if (i === 1) {
-      pill.innerHTML = '<span class="pill-day">Tmrw</span><span class="pill-date">' + months[d.getMonth()] + ' ' + d.getDate() + '</span>';
-    } else {
-      pill.innerHTML = '<span class="pill-day">' + days[d.getDay()] + '</span><span class="pill-date">' + months[d.getMonth()] + ' ' + d.getDate() + '</span>';
-    }
-
+    pill.className = 'date-pill'; pill.id = 'pill-' + i;
+    const dayLabel = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : days[d.getDay()];
+    pill.innerHTML = dayLabel + ' <span style="opacity:0.6;font-size:9px">' + months[d.getMonth()] + ' ' + d.getDate() + '</span>';
     pill.addEventListener('click', () => jumpToDay(i));
     bar.appendChild(pill);
   }
@@ -587,72 +556,42 @@ function jumpToDay(dayOffset) {
   const target = new Date(now);
   target.setDate(target.getDate() + dayOffset);
   target.setHours(dayOffset === 0 ? now.getHours() : 8, dayOffset === 0 ? now.getMinutes() : 0, 0, 0);
-
-  // Check if we have data for this date
-  const hasData = tideData.some(p => {
-    const d = new Date(p.date); d.setHours(0,0,0,0);
-    const t = new Date(target); t.setHours(0,0,0,0);
-    return d.getTime() === t.getTime();
-  });
-
-  if (!hasData) {
-    loadMoreDays(target);
+  const minutes = (target.getTime() - startTime.getTime()) / 60000;
+  if (minutes > TOTAL_HOURS * 60) {
+    fetchAndJump(target);
     return;
   }
-
-  const neededMinutes = (target.getTime() - startTime.getTime()) / 60000;
-  currentMinuteOffset = Math.max(0, neededMinutes);
+  currentMinuteOffset = Math.max(0, Math.min(TOTAL_HOURS * 60, minutes));
   update();
 }
 
-async function loadMoreDays(targetDate) {
-  // Extend startTime back and reload if needed, or just fetch the specific date
-  const dayOffset = Math.round((targetDate - new Date()) / 86400000);
-  const fetchStart = new Date(targetDate);
-  fetchStart.setDate(fetchStart.getDate() - 1);
-  const fetchEnd = new Date(targetDate);
-  fetchEnd.setDate(fetchEnd.getDate() + 2);
-
+async function fetchAndJump(targetDate) {
   const fmt = d => d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
-  const base = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${fmt(fetchStart)}&end_date=${fmt(fetchEnd)}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst_ldt&units=english&application=stony_creek_tides&format=json`;
-
+  const s = new Date(targetDate); s.setDate(s.getDate()-1);
+  const e = new Date(targetDate); e.setDate(e.getDate()+2);
   try {
-    const [r1, r2] = await Promise.all([
-      fetch(base + '&interval=6'),
-      fetch(base + '&interval=hilo')
+    const [r1,r2] = await Promise.all([
+      fetch(`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${fmt(s)}&end_date=${fmt(e)}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=6&units=english&application=stony_creek_tides&format=json`),
+      fetch(`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${fmt(s)}&end_date=${fmt(e)}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=stony_creek_tides&format=json`)
     ]);
-    const [j1, j2] = await Promise.all([r1.json(), r2.json()]);
-
-    const parseEntries = (preds, includeType) => preds.map(p => {
-      const [datePart, timePart] = p.t.split(' ');
-      const [yr, mo, dy] = datePart.split('-').map(Number);
-      const [hh, mm] = timePart.split(':').map(Number);
-      const entry = { date: new Date(yr, mo-1, dy, hh, mm, 0), v: parseFloat(p.v) };
-      if (includeType) entry.type = p.type;
-      return entry;
+    const [j1,j2] = await Promise.all([r1.json(),r2.json()]);
+    const parse = (preds, type) => (preds||[]).map(p => {
+      const [dp,tp] = p.t.split(' '); const [yr,mo,dy] = dp.split('-').map(Number); const [hh,mm] = tp.split(':').map(Number);
+      const o = {date:new Date(yr,mo-1,dy,hh,mm,0),v:parseFloat(p.v)}; if(type) o.type=p.type; return o;
     });
-
-    // Merge new data, avoiding duplicates by time
-    const newCurve = parseEntries(j1.predictions || [], false);
-    const newHilos = parseEntries(j2.predictions || [], true);
-
-    // Merge into existing arrays
-    const existingTimes = new Set(tideData.map(p => p.date.getTime()));
-    newCurve.forEach(p => { if (!existingTimes.has(p.date.getTime())) tideData.push(p); });
-    tideData.sort((a,b) => a.date - b.date);
-
-    const existingHiTimes = new Set(hiloData.map(p => p.date.getTime()));
-    newHilos.forEach(p => { if (!existingHiTimes.has(p.date.getTime())) hiloData.push(p); });
-    hiloData.sort((a,b) => a.date - b.date);
-
-    // Recalculate offset from startTime
-    const neededMinutes = (targetDate.getTime() - startTime.getTime()) / 60000;
-    currentMinuteOffset = Math.max(0, neededMinutes);
-    buildTickMarks();
+    const newCurve = parse(j1.predictions, false);
+    const newHilos = parse(j2.predictions, true);
+    const et = new Set(tideData.map(p=>p.date.getTime()));
+    newCurve.forEach(p=>{if(!et.has(p.date.getTime()))tideData.push(p);});
+    tideData.sort((a,b)=>a.date-b.date);
+    const eh = new Set(hiloData.map(p=>p.date.getTime()));
+    newHilos.forEach(p=>{if(!eh.has(p.date.getTime()))hiloData.push(p);});
+    hiloData.sort((a,b)=>a.date-b.date);
+    // Extend TOTAL_HOURS temporarily
+    const needed = (targetDate.getTime() - startTime.getTime()) / 60000;
+    currentMinuteOffset = Math.max(0, needed);
     update();
-  } catch(e) {
-    console.error('Failed to load extended tides', e);
-  }
+  } catch(e) { console.error('fetch failed', e); }
 }
 
 // Scroll interactions
@@ -695,7 +634,8 @@ async function init() {
   // Set pier background
   document.getElementById('pier-bg').style.backgroundImage = "url('https://friedalphago2.github.io/tides/Time%20and%20Tide.png')"; 
 
-  // Build date pills
+  // Build 30-day pill bar
+  const now = new Date();
   buildDatePills();
 
   // Set current time offset
@@ -703,16 +643,13 @@ async function init() {
   currentMinuteOffset = Math.max(0, nowMinutes);
 
   try {
-    document.getElementById('loading-text').textContent = 'fetching tides...';
     [tideData, hiloData] = await Promise.all([fetchTideData(), fetchHiLos()]);
-    if (!tideData.length) throw new Error('empty response');
     buildTickMarks();
     update();
     document.getElementById('loading').classList.add('hidden');
   } catch(e) {
-    document.getElementById('loading-text').textContent = 'error: ' + e.message;
+    document.getElementById('loading-text').textContent = 'could not load tide data';
     document.getElementById('loading-text').style.color = '#ef9f27';
-    document.getElementById('loading-text').style.fontSize = '10px';
   }
 }
 

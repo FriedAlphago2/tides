@@ -331,7 +331,7 @@
 <script>
 // ---- CONFIG ----
 const STATION = '8465705';
-const TOTAL_HOURS = 54;
+let TOTAL_HOURS = 54;
 
 // ---- TIDE RANGE FOR WATER HEIGHT MAPPING ----
 // These will be set from actual data
@@ -557,11 +557,23 @@ function jumpToDay(dayOffset) {
   target.setDate(target.getDate() + dayOffset);
   target.setHours(dayOffset === 0 ? now.getHours() : 8, dayOffset === 0 ? now.getMinutes() : 0, 0, 0);
   const minutes = (target.getTime() - startTime.getTime()) / 60000;
-  if (minutes > TOTAL_HOURS * 60) {
+  // Extend window if target is past current range
+  const minHoursNeeded = Math.ceil(minutes / 60) + 24;
+  if (minHoursNeeded > TOTAL_HOURS) {
+    TOTAL_HOURS = minHoursNeeded;
+    buildTickMarks();
+  }
+  // Fetch data if we don't have it for that date
+  const hasData = tideData.some(p => {
+    const d = new Date(p.date); d.setHours(0,0,0,0);
+    const t = new Date(target); t.setHours(0,0,0,0);
+    return d.getTime() === t.getTime();
+  });
+  if (!hasData) {
     fetchAndJump(target);
     return;
   }
-  currentMinuteOffset = Math.max(0, Math.min(TOTAL_HOURS * 60, minutes));
+  currentMinuteOffset = Math.max(0, minutes);
   update();
 }
 
@@ -587,8 +599,13 @@ async function fetchAndJump(targetDate) {
     const eh = new Set(hiloData.map(p=>p.date.getTime()));
     newHilos.forEach(p=>{if(!eh.has(p.date.getTime()))hiloData.push(p);});
     hiloData.sort((a,b)=>a.date-b.date);
-    // Extend TOTAL_HOURS temporarily
+    // Extend the scroll window
     const needed = (targetDate.getTime() - startTime.getTime()) / 60000;
+    const minHoursNeeded = Math.ceil(needed / 60) + 24;
+    if (minHoursNeeded > TOTAL_HOURS) {
+      TOTAL_HOURS = minHoursNeeded;
+      buildTickMarks();
+    }
     currentMinuteOffset = Math.max(0, needed);
     update();
   } catch(e) { console.error('fetch failed', e); }

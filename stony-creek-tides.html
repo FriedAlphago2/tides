@@ -213,9 +213,15 @@
     padding: 12px 16px 24px;
     display: flex;
     gap: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
     background: linear-gradient(0deg, rgba(0,0,0,0.5) 0%, transparent 100%);
   }
+  .date-bar::-webkit-scrollbar { display: none; }
   .date-pill {
+    flex-shrink: 0;
+    white-space: nowrap;
     font-family: 'DM Mono', monospace;
     font-size: 10px;
     letter-spacing: 0.1em;
@@ -315,16 +321,14 @@
 
   <!-- Date bar -->
   <div class="date-bar">
-    <div class="date-pill active" id="pill-0" onclick="jumpToDay(0)">Today</div>
-    <div class="date-pill" id="pill-1" onclick="jumpToDay(1)">Tomorrow</div>
-    <div class="date-pill" id="pill-2" onclick="jumpToDay(2)"></div>
+    <!-- 7-day pills built by buildDatePills() -->
   </div>
 </div>
 
 <script>
 // ---- CONFIG ----
 const STATION = '8465705';
-const TOTAL_HOURS = 54;
+const TOTAL_HOURS = 168;
 
 // ---- TIDE RANGE FOR WATER HEIGHT MAPPING ----
 // These will be set from actual data
@@ -367,7 +371,7 @@ function fmtDate(d) {
 async function fetchTideData() {
   const now = new Date();
   const dates = [];
-  for (let i = -1; i <= 3; i++) {
+  for (let i = -1; i <= 7; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
@@ -388,7 +392,7 @@ async function fetchTideData() {
 async function fetchHiLos() {
   const now = new Date();
   const dates = [];
-  for (let i = -1; i <= 3; i++) {
+  for (let i = -1; i <= 7; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
@@ -510,21 +514,38 @@ function updateHeader() {
 function updateDatePills() {
   const displayDate = new Date(startTime.getTime() + currentMinuteOffset * 60000);
   const today = new Date(); today.setHours(0,0,0,0);
-  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
-  const day2 = new Date(today); day2.setDate(day2.getDate()+2);
   const dDate = new Date(displayDate); dDate.setHours(0,0,0,0);
-  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  document.getElementById('pill-2').textContent = days[day2.getDay()];
-  ['pill-0','pill-1','pill-2'].forEach((id, i) => {
-    const ref = [today, tomorrow, day2][i];
-    document.getElementById(id).classList.toggle('active', dDate.getTime() === ref.getTime());
-  });
+  for (let i = 0; i < 7; i++) {
+    const pill = document.getElementById('pill-' + i);
+    if (!pill) continue;
+    const ref = new Date(today); ref.setDate(ref.getDate() + i);
+    pill.classList.toggle('active', dDate.getTime() === ref.getTime());
+  }
 }
 
 function update() {
   updateHeader();
   updateThumb();
   updateDatePills();
+}
+
+function buildDatePills() {
+  const bar = document.querySelector('.date-bar');
+  // Clear any existing pills
+  bar.querySelectorAll('.date-pill').forEach(el => el.remove());
+  const now = new Date();
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now); d.setDate(d.getDate() + i); d.setHours(0,0,0,0);
+    const pill = document.createElement('div');
+    pill.className = 'date-pill';
+    pill.id = 'pill-' + i;
+    const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : days[d.getDay()];
+    pill.innerHTML = label + ' <span style="opacity:0.6;font-size:9px">' + months[d.getMonth()] + ' ' + d.getDate() + '</span>';
+    pill.addEventListener('click', () => jumpToDay(i));
+    bar.appendChild(pill);
+  }
 }
 
 function jumpToDay(dayOffset) {
@@ -577,11 +598,9 @@ async function init() {
   // Set pier background
   document.getElementById('pier-bg').style.backgroundImage = "url('https://friedalphago2.github.io/tides/Time%20and%20Tide.png')"; 
 
-  // Set day2 pill
+  // Build 7 pills
   const now = new Date();
-  const day2 = new Date(now); day2.setDate(day2.getDate()+2);
-  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  document.getElementById('pill-2').textContent = days[day2.getDay()];
+  buildDatePills();
 
   // Set current time offset
   const nowMinutes = (now.getTime() - startTime.getTime()) / 60000;

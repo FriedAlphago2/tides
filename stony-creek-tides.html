@@ -380,7 +380,7 @@ function fmtDate(d) {
 async function fetchTideData() {
   const now = new Date();
   const dates = [];
-  for (let i = -1; i <= 31; i++) {
+  for (let i = -1; i <= 4; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
@@ -401,7 +401,7 @@ async function fetchTideData() {
 async function fetchHiLos() {
   const now = new Date();
   const dates = [];
-  for (let i = -1; i <= 31; i++) {
+  for (let i = -1; i <= 4; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
@@ -582,13 +582,20 @@ function jumpToDay(dayOffset) {
   target.setDate(target.getDate() + dayOffset);
   target.setHours(dayOffset === 0 ? now.getHours() : 8, dayOffset === 0 ? now.getMinutes() : 0, 0, 0);
 
-  // Extend data range if needed
-  const neededMinutes = (target.getTime() - startTime.getTime()) / 60000;
-  if (neededMinutes > TOTAL_HOURS * 60 - 60) {
+  // Check if we have data for this date
+  const hasData = tideData.some(p => {
+    const d = new Date(p.date); d.setHours(0,0,0,0);
+    const t = new Date(target); t.setHours(0,0,0,0);
+    return d.getTime() === t.getTime();
+  });
+
+  if (!hasData) {
     loadMoreDays(target);
     return;
   }
-  currentMinuteOffset = Math.max(0, Math.min(TOTAL_HOURS * 60, neededMinutes));
+
+  const neededMinutes = (target.getTime() - startTime.getTime()) / 60000;
+  currentMinuteOffset = Math.max(0, neededMinutes);
   update();
 }
 
@@ -632,11 +639,8 @@ async function loadMoreDays(targetDate) {
     newHilos.forEach(p => { if (!existingHiTimes.has(p.date.getTime())) hiloData.push(p); });
     hiloData.sort((a,b) => a.date - b.date);
 
-    // Reset startTime and recalculate offset
-    startTime = getStartTime();
+    // Recalculate offset from startTime
     const neededMinutes = (targetDate.getTime() - startTime.getTime()) / 60000;
-    // Temporarily expand TOTAL_HOURS
-    window._totalHoursOverride = Math.max(TOTAL_HOURS, Math.ceil(neededMinutes / 60) + 24);
     currentMinuteOffset = Math.max(0, neededMinutes);
     buildTickMarks();
     update();

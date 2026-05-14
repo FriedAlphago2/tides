@@ -331,7 +331,7 @@
 <script>
 // ---- CONFIG ----
 const STATION = '8465705';
-let TOTAL_HOURS = 54;
+const TOTAL_HOURS = 168;
 
 // ---- TIDE RANGE FOR WATER HEIGHT MAPPING ----
 // These will be set from actual data
@@ -374,7 +374,7 @@ function fmtDate(d) {
 async function fetchTideData() {
   const now = new Date();
   const dates = [];
-  for (let i = -1; i <= 3; i++) {
+  for (let i = -1; i <= 7; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
@@ -395,7 +395,7 @@ async function fetchTideData() {
 async function fetchHiLos() {
   const now = new Date();
   const dates = [];
-  for (let i = -1; i <= 3; i++) {
+  for (let i = -1; i <= 7; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
     dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
@@ -518,13 +518,11 @@ function updateDatePills() {
   const displayDate = new Date(startTime.getTime() + currentMinuteOffset * 60000);
   const today = new Date(); today.setHours(0,0,0,0);
   const dDate = new Date(displayDate); dDate.setHours(0,0,0,0);
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 7; i++) {
     const pill = document.getElementById('pill-' + i);
     if (!pill) continue;
     const ref = new Date(today); ref.setDate(ref.getDate() + i);
-    const isActive = dDate.getTime() === ref.getTime();
-    pill.classList.toggle('active', isActive);
-    if (isActive) pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    pill.classList.toggle('active', dDate.getTime() === ref.getTime());
   }
 }
 
@@ -540,7 +538,7 @@ function buildDatePills() {
   const now = new Date();
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 7; i++) {
     const d = new Date(now); d.setDate(d.getDate() + i); d.setHours(0,0,0,0);
     const pill = document.createElement('div');
     pill.className = 'date-pill'; pill.id = 'pill-' + i;
@@ -557,58 +555,8 @@ function jumpToDay(dayOffset) {
   target.setDate(target.getDate() + dayOffset);
   target.setHours(dayOffset === 0 ? now.getHours() : 8, dayOffset === 0 ? now.getMinutes() : 0, 0, 0);
   const minutes = (target.getTime() - startTime.getTime()) / 60000;
-  // Extend window if target is past current range
-  const minHoursNeeded = Math.ceil(minutes / 60) + 24;
-  if (minHoursNeeded > TOTAL_HOURS) {
-    TOTAL_HOURS = minHoursNeeded;
-    buildTickMarks();
-  }
-  // Fetch data if we don't have it for that date
-  const hasData = tideData.some(p => {
-    const d = new Date(p.date); d.setHours(0,0,0,0);
-    const t = new Date(target); t.setHours(0,0,0,0);
-    return d.getTime() === t.getTime();
-  });
-  if (!hasData) {
-    fetchAndJump(target);
-    return;
-  }
-  currentMinuteOffset = Math.max(0, minutes);
+  currentMinuteOffset = Math.max(0, Math.min(TOTAL_HOURS * 60, minutes));
   update();
-}
-
-async function fetchAndJump(targetDate) {
-  const fmt = d => d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
-  const s = new Date(targetDate); s.setDate(s.getDate()-1);
-  const e = new Date(targetDate); e.setDate(e.getDate()+2);
-  try {
-    const [r1,r2] = await Promise.all([
-      fetch(`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${fmt(s)}&end_date=${fmt(e)}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=6&units=english&application=stony_creek_tides&format=json`),
-      fetch(`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${fmt(s)}&end_date=${fmt(e)}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=stony_creek_tides&format=json`)
-    ]);
-    const [j1,j2] = await Promise.all([r1.json(),r2.json()]);
-    const parse = (preds, type) => (preds||[]).map(p => {
-      const [dp,tp] = p.t.split(' '); const [yr,mo,dy] = dp.split('-').map(Number); const [hh,mm] = tp.split(':').map(Number);
-      const o = {date:new Date(yr,mo-1,dy,hh,mm,0),v:parseFloat(p.v)}; if(type) o.type=p.type; return o;
-    });
-    const newCurve = parse(j1.predictions, false);
-    const newHilos = parse(j2.predictions, true);
-    const et = new Set(tideData.map(p=>p.date.getTime()));
-    newCurve.forEach(p=>{if(!et.has(p.date.getTime()))tideData.push(p);});
-    tideData.sort((a,b)=>a.date-b.date);
-    const eh = new Set(hiloData.map(p=>p.date.getTime()));
-    newHilos.forEach(p=>{if(!eh.has(p.date.getTime()))hiloData.push(p);});
-    hiloData.sort((a,b)=>a.date-b.date);
-    // Extend the scroll window
-    const needed = (targetDate.getTime() - startTime.getTime()) / 60000;
-    const minHoursNeeded = Math.ceil(needed / 60) + 24;
-    if (minHoursNeeded > TOTAL_HOURS) {
-      TOTAL_HOURS = minHoursNeeded;
-      buildTickMarks();
-    }
-    currentMinuteOffset = Math.max(0, needed);
-    update();
-  } catch(e) { console.error('fetch failed', e); }
 }
 
 // Scroll interactions
@@ -651,7 +599,7 @@ async function init() {
   // Set pier background
   document.getElementById('pier-bg').style.backgroundImage = "url('https://friedalphago2.github.io/tides/Time%20and%20Tide.png')"; 
 
-  // Build 30-day pill bar
+  // Build 7-day pill bar
   const now = new Date();
   buildDatePills();
 

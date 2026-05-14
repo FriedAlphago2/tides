@@ -125,7 +125,7 @@
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
   }
   .tick.midnight .tick-label { color: #4fc3f7; }
-  .tick.noon .tick-label { color: rgba(255,220,140,0.85); }
+  .tick.noon .tick-label { color: #1e6fa8; }
 
   .scroll-thumb {
     position: absolute;
@@ -560,7 +560,7 @@ function buildDatePills() {
     pill.className = 'date-pill';
     pill.id = 'pill-' + i;
     const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : days[d.getDay()];
-    pill.innerHTML = label + ' <span style="opacity:0.6;font-size:9px">' + months[d.getMonth()] + ' ' + d.getDate() + '</span>';
+    pill.innerHTML = label;
     pill.addEventListener('click', () => jumpToDay(i));
     bar.appendChild(pill);
   }

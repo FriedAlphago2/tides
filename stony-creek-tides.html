@@ -389,7 +389,7 @@ async function fetchTideData() {
   const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${begin}&end_date=${end}&station=${STATION}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=6&units=english&application=stony_creek_tides&format=json`;
   const r = await fetch(url);
   const j = await r.json();
-  if (!j.predictions) throw new Error('No data');
+  if (!j.predictions) throw new Error(j.error ? j.error.message : 'No predictions in response');
   return j.predictions.map(p => {
     const [datePart, timePart] = p.t.split(' ');
     const [yr, mo, dy] = datePart.split('-').map(Number);
@@ -697,13 +697,16 @@ async function init() {
   currentMinuteOffset = Math.max(0, nowMinutes);
 
   try {
+    document.getElementById('loading-text').textContent = 'fetching tides...';
     [tideData, hiloData] = await Promise.all([fetchTideData(), fetchHiLos()]);
+    if (!tideData.length) throw new Error('empty response');
     buildTickMarks();
     update();
     document.getElementById('loading').classList.add('hidden');
   } catch(e) {
-    document.getElementById('loading-text').textContent = 'could not load tide data';
+    document.getElementById('loading-text').textContent = 'error: ' + e.message;
     document.getElementById('loading-text').style.color = '#ef9f27';
+    document.getElementById('loading-text').style.fontSize = '10px';
   }
 }
 

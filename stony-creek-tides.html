@@ -45,7 +45,7 @@
     bottom: 0;
     pointer-events: none;
     transition: height 0.05s linear;
-    overflow: hidden;
+    overflow: visible;
   }
   .water-top {
     position: absolute;
@@ -55,6 +55,26 @@
     height: 3px;
     background: rgba(100,200,255,0.6);
     box-shadow: 0 0 8px rgba(79,195,247,0.5);
+  }
+  .water-grab {
+    position: absolute;
+    top: -16px;
+    left: 0;
+    right: 0;
+    height: 36px;
+    pointer-events: auto;
+    cursor: ns-resize;
+    touch-action: none;
+    z-index: 5;
+  }
+  .water-grab.active::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 14px;
+    height: 8px;
+    background: rgba(100,200,255,0.3);
+    border-radius: 4px;
+    filter: blur(4px);
   }
   .water-body {
     position: absolute;
@@ -305,6 +325,7 @@
 
   <!-- Water overlay -->
   <div class="water-overlay" id="water-overlay" style="height:0%">
+    <div class="water-grab" id="water-grab"></div>
     <div class="water-top"></div>
     <div class="water-body"></div>
   </div>
@@ -575,6 +596,122 @@ function jumpToDay(dayOffset) {
   currentMinuteOffset = Math.max(0, Math.min(TOTAL_HOURS * 60, minutes));
   update();
 }
+
+// === WATERLINE DRAG ===
+// Drag the tide line up/down to scrub forward in time.
+// As tide rises in nature, dragging up advances time. Dragging down also advances
+// time, but to the next moment the tide is at the lower height (catching falling phase).
+const waterGrab = document.getElementById('water-grab');
+let isWaterDragging = false;
+let waterDragStartY = 0;
+let waterDragStartHeight = 0;
+let waterDragStartMinute = 0;
+let waterDragStartScreenH = 0;
+
+function getEventY(e) {
+  return e.touches ? e.touches[0].clientY : e.clientY;
+}
+
+function pctToHeight(pct) {
+  const frac = (pct - WATER_PCT_MIN) / (WATER_PCT_MAX - WATER_PCT_MIN);
+  return TIDE_FIXED_MIN + frac * (TIDE_FIXED_MAX - TIDE_FIXED_MIN);
+}
+
+// Search forward in time from `fromMinute` to find the next moment the tide
+// reaches `targetHeight`. Searches up to 12 hours ahead. Returns the minute offset
+// from startTime, or null if not found in the window.
+function findNextHeightTime(targetHeight, fromMinute) {
+  const SEARCH_MIN = 12 * 60; // 12 hour window
+  const STEP = 3; // minute resolution
+  const fromDate = new Date(startTime.getTime() + fromMinute * 60000);
+  const startH = getHeightAtTime(fromDate);
+  if (startH === null) return null;
+
+  let prevH = startH;
+  let prevM = fromMinute;
+  for (let dm = STEP; dm <= SEARCH_MIN; dm += STEP) {
+    const m = fromMinute + dm;
+    if (m > TOTAL_HOURS * 60) break;
+    const date = new Date(startTime.getTime() + m * 60000);
+    const h = getHeightAtTime(date);
+    if (h === null) break;
+    // Did we cross the target height between prevH and h?
+    if ((prevH <= targetHeight && h >= targetHeight) ||
+        (prevH >= targetHeight && h <= targetHeight)) {
+      // Linear interp for the exact crossing
+      const frac = (targetHeight - prevH) / (h - prevH || 1);
+      return prevM + frac * STEP;
+    }
+    prevH = h;
+    prevM = m;
+  }
+  // Not found in window - return the closest extreme
+  // Find max or min in window depending on which side the target is on
+  let extremeM = fromMinute;
+  let extremeH = startH;
+  for (let dm = STEP; dm <= SEARCH_MIN; dm += STEP) {
+    const m = fromMinute + dm;
+    if (m > TOTAL_HOURS * 60) break;
+    const date = new Date(startTime.getTime() + m * 60000);
+    const h = getHeightAtTime(date);
+    if (h === null) break;
+    if (targetHeight > startH && h > extremeH) { extremeH = h; extremeM = m; }
+    else if (targetHeight < startH && h < extremeH) { extremeH = h; extremeM = m; }
+  }
+  return extremeM;
+}
+
+function onWaterDragStart(e) {
+  isWaterDragging = true;
+  waterDragStartY = getEventY(e);
+  waterDragStartScreenH = window.innerHeight;
+  waterDragStartMinute = currentMinuteOffset;
+  const displayDate = new Date(startTime.getTime() + currentMinuteOffset * 60000);
+  waterDragStartHeight = getHeightAtTime(displayDate) || 0;
+  waterGrab.classList.add('active');
+  e.preventDefault();
+}
+
+let waterRafPending = false;
+function onWaterDragMove(e) {
+  if (!isWaterDragging) return;
+  const y = getEventY(e);
+  const dy = y - waterDragStartY;
+  // Map dy to height change. Negative dy (up) = higher tide.
+  // Use the screen-to-height ratio same as the overlay
+  const screenPctPerPx = 100 / waterDragStartScreenH;
+  const heightRange = TIDE_FIXED_MAX - TIDE_FIXED_MIN;
+  const overlayPctRange = WATER_PCT_MAX - WATER_PCT_MIN;
+  const heightPerPx = (screenPctPerPx / overlayPctRange) * heightRange;
+  const dh = -dy * heightPerPx; // negative dy = positive height
+  let targetHeight = waterDragStartHeight + dh;
+  targetHeight = Math.max(TIDE_FIXED_MIN, Math.min(TIDE_FIXED_MAX, targetHeight));
+
+  if (!waterRafPending) {
+    waterRafPending = true;
+    requestAnimationFrame(() => {
+      const newMinute = findNextHeightTime(targetHeight, waterDragStartMinute);
+      if (newMinute !== null) {
+        currentMinuteOffset = Math.max(0, Math.min(TOTAL_HOURS * 60, newMinute));
+        update();
+      }
+      waterRafPending = false;
+    });
+  }
+  e.preventDefault();
+}
+
+function onWaterDragEnd() {
+  isWaterDragging = false;
+  waterGrab.classList.remove('active');
+}
+
+waterGrab.addEventListener('mousedown', onWaterDragStart);
+waterGrab.addEventListener('touchstart', onWaterDragStart, { passive: false });
+document.addEventListener('mousemove', onWaterDragMove);
+document.addEventListener('touchmove', onWaterDragMove, { passive: false });
+document.addEventListener('mouseup', onWaterDragEnd);
+document.addEventListener('touchend', onWaterDragEnd);
 
 // Scroll interactions
 const track = document.getElementById('scroll-track');
